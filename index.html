@@ -2,6 +2,7 @@
 <html lang="id"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Dompetku – Catatan Keuangan</title>
+<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#3566E8"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Dompetku"><meta name="apple-mobile-web-app-status-bar-style" content="default"><link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💸</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
@@ -155,7 +156,7 @@ function openAdd(){closeAdd();const d=document.createElement('div');d.id='sheet'
  <button class=btn style="width:100%;padding:12px" onclick="addTx()">Simpan</button></div>`;
  document.body.appendChild(d);fillCats();$('#f_n').focus()}
 function more(){const b=(v,i,t,d)=>`<button class="card" style="text-align:left;font:inherit;color:inherit;cursor:pointer;display:flex;gap:14px;align-items:center;width:100%" onclick="view='${v}';render()"><span style="color:var(--blue)">${svg(IC[i])}</span><span><b>${t}</b><br><small class=who>${d}</small></span></button>`;
- return b('save','coins','Tabungan','Total tabungan dan riwayat saving')+b('setup','sliders','Setup','Akun, saldo awal, kategori')+`<button class="btn ghost" style="width:100%;padding:12px" onclick="logout()">Keluar</button>`}
+ return installCard()+b('save','coins','Tabungan','Total tabungan dan riwayat saving')+b('setup','sliders','Setup','Akun, saldo awal, kategori')+`<button class="btn ghost" style="width:100%;padding:12px" onclick="logout()">Keluar</button>`}
 async function addTx(){const type=$('#f_t').value,amount=+$('#f_n').value;if(!amount||!S.a.length)return toast('Isi nominal dulu');
  const to=type=='transfer'?$('#f_a2').value:null;if(to&&to==$('#f_a').value)return toast('Akun asal dan tujuan sama');
  const r=await db(sb.from('transactions').insert({date:$('#f_d').value,type,category:type=='transfer'?'Pindah Akun':$('#f_c').value,account_id:$('#f_a').value,to_account_id:to,amount,note:$('#f_k').value}));if(!r.error){closeAdd();toast('Tersimpan')}}
@@ -197,6 +198,14 @@ const delA=id=>confirm('Hapus akun beserta transaksinya?')&&db(sb.from('accounts
 async function addCat(type){const n=$('#nc_'+type).value.trim();n&&db(sb.from('categories').insert({type,name:n}))}
 const delCat=id=>confirm('Hapus kategori ini?')&&db(sb.from('categories').delete().eq('id',id));
 
+// ---------- PWA ----------
+let dip=null;const standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e;if(view=='more')render()});
+addEventListener('appinstalled',()=>{dip=null;toast('Aplikasi terpasang');render()});
+async function install(){if(dip){dip.prompt();await dip.userChoice;dip=null;render()}}
+function installCard(){if(standalone())return'';const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+ return`<div class=card><h3>📲 Pasang di perangkat</h3>${dip?`<p class=who>Pasang agar muncul di layar utama dan terbuka seperti aplikasi.</p><button class=btn style="width:100%;padding:12px" onclick="install()">Pasang aplikasi</button>`:ios?'<p class=who>Di Safari: ketuk tombol Bagikan, lalu <b>Tambah ke Layar Utama</b>.</p>':'<p class=who>Buka menu browser (⋮), lalu pilih <b>Instal aplikasi</b> atau <b>Tambahkan ke layar utama</b>.</p>'}</div>`}
 // ---------- BOOT ----------
 sb.auth.onAuthStateChange((e,s)=>{if(e=='SIGNED_OUT'){U=null;authView()}else if(s?.user&&!U)start(s.user)});
 sb.auth.getSession().then(({data:{session}})=>{if(!session)authView()});
