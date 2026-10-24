@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Dompetku – Catatan Keuangan</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💸</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#F3F5FA;--card:#fff;--ink:#16213A;--mut:#6B7691;--line:#E3E8F2;--blue:#3566E8;--mint:#1FA67A;--coral:#E2573F;--amber:#E9A23B;--soft:#EDF2FF}
+@media(prefers-color-scheme:dark){:root{--bg:#0E1424;--card:#172038;--ink:#EAF0FF;--mut:#93A0BF;--line:#26314F;--soft:#1F2C4D}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 'Plus Jakarta Sans',system-ui,sans-serif;padding-bottom:84px}
+h1,h2,h3{margin:0}h3{font-size:15px;margin-bottom:10px}
+header{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;align-items:center;justify-content:space-between;padding:12px 16px;padding-top:max(12px,env(safe-area-inset-top))}
+.logo{font-weight:800;font-size:18px}.who{color:var(--mut);font-size:12px}
+main{max-width:1000px;margin:0 auto;padding:0 16px 16px;display:grid;gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;overflow:hidden}
+.hero{background:var(--blue);color:#fff;border:0;border-radius:22px;padding:22px}.hero small{opacity:.8}.hero .big{font-size:clamp(30px,8vw,46px);font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}.grid2{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.stat small{color:var(--mut);display:block}.stat b{font-size:17px;font-variant-numeric:tabular-nums}
+.pos{color:var(--mint)}.neg{color:var(--coral)}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding:6px 6px max(6px,env(safe-area-inset-bottom));z-index:6}
+nav button{flex:1;border:0;background:none;color:var(--mut);font:inherit;font-size:11px;padding:6px 2px;border-radius:12px;cursor:pointer}
+nav button span{display:block;font-size:20px}nav .on{color:var(--blue);background:var(--soft);font-weight:700}
+@media(min-width:820px){body{padding:0}nav{position:static;border:0;background:none;max-width:1000px;margin:0 auto;padding:0 16px 12px;gap:6px}nav button{flex:none;padding:8px 16px;font-size:13px}nav button span{display:inline;margin-right:6px;font-size:15px}}
+input,select,button.btn{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 10px;min-width:0;width:100%}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+button.btn{background:var(--blue);color:#fff;border:0;font-weight:700;cursor:pointer;width:auto}button.ghost{background:var(--soft);color:var(--blue)}
+.fg{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+table{width:100%;border-collapse:collapse}th,td{padding:8px 6px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}th{color:var(--mut);font-weight:500;font-size:12px}td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+.sc{overflow-x:auto}.tag{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700}
+.income{background:#D9F3E9;color:#0E7B58}.expense{background:#FDE0DB;color:#B93A25}.saving{background:#FBEBCB;color:#8C5A06}.transfer{background:#E6DEFB;color:#5A3FB5}
+.x{border:0;background:none;color:var(--mut);cursor:pointer;font-size:16px;width:auto}.chip{display:inline-flex;gap:4px;align-items:center;background:var(--soft);border-radius:99px;padding:4px 6px 4px 12px;margin:3px}
+.bar{height:8px;border-radius:9px;background:var(--line);overflow:hidden}.bar i{display:block;height:100%;background:var(--blue)}
+.auth{max-width:380px;margin:12vh auto;padding:0 16px;display:grid;gap:10px}.auth h1{font-size:30px;letter-spacing:-.02em}
+.msg{color:var(--coral);min-height:18px}canvas{max-height:240px}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row>*{flex:1}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:99px;display:none;z-index:9}
+</style></head><body>
+<div id="app"></div><div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ====== ISI DENGAN PROJECT SUPABASE KAMU ======
+const SUPABASE_URL='https://XXXX.supabase.co', SUPABASE_KEY='ANON_PUBLIC_KEY';
+// ==============================================
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=s=>document.querySelector(s), A=$('#app');
+const MON=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+const TL={income:'Pemasukan',expense:'Pengeluaran',saving:'Saving',transfer:'Pindah Akun'};
+const fmt=n=>(n<0?'-':'')+'Rp '+new Intl.NumberFormat('id-ID').format(Math.abs(Math.round(n||0)));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sum=a=>a.reduce((x,y)=>x+(+y||0),0);
+const today=()=>new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
+let S={a:[],c:[],t:[],s:{}},U=null,view='home',ym=today().slice(0,7),charts={},chan=null,mode='in',tm;
+const toast=m=>{const t=$('#toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',2200)};
+const an=id=>S.a.find(a=>a.id==id)?.name||'?';
+const cats=t=>S.c.filter(c=>c.type==t);
+
+// ---------- AUTH ----------
+function authView(msg=''){A.innerHTML=`<form class="auth" onsubmit="return doAuth(event)">
+<h1>💸 Dompetku</h1><p class="who">Catat pemasukan, pengeluaran, dan tabungan. Sinkron di semua perangkat.</p>
+<div class="row"><button type="button" class="btn ${mode=='in'?'':'ghost'}" onclick="mode='in';authView()">Masuk</button><button type="button" class="btn ${mode=='up'?'':'ghost'}" onclick="mode='up';authView()">Daftar</button></div>
+${mode=='up'?'<input id=nm placeholder="Nama kamu" required>':''}
+<input id=em type=email placeholder="Email" required autocomplete=email><input id=pw type=password placeholder="Kata sandi (min. 6 karakter)" minlength=6 required autocomplete=${mode=='in'?'current-password':'new-password'}>
+<button class="btn" style="width:100%">${mode=='in'?'Masuk':'Buat akun'}</button><div class="msg" id=am>${msg}</div></form>`}
+async function doAuth(e){e.preventDefault();const email=$('#em').value,password=$('#pw').value;let r;
+ if(mode=='in')r=await sb.auth.signInWithPassword({email,password});
+ else{r=await sb.auth.signUp({email,password,options:{data:{name:$('#nm').value}}});if(!r.error&&!r.data.session){mode='in';return authView('Akun dibuat. Cek email untuk konfirmasi, lalu masuk.'),false}}
+ if(r.error)$('#am').textContent=r.error.message;return false}
+async function logout(){chan&&sb.removeChannel(chan);await sb.auth.signOut()}
+
+// ---------- DATA ----------
+async function load(){const[a,c,t,s]=await Promise.all([sb.from('accounts').select('*').order('created_at'),sb.from('categories').select('*').order('created_at'),sb.from('transactions').select('*').order('date',{ascending:false}).order('created_at',{ascending:false}),sb.from('settings').select('*').maybeSingle()]);
+ S.a=a.data||[];S.c=c.data||[];S.t=t.data||[];S.s=s.data||{}}
+async function seed(){if(S.a.length||S.c.length)return;
+ await sb.from('accounts').insert(['CASH','BANK MANDIRI','ALLO BANK','DANA','GOPAY','OVO'].map(name=>({name})));
+ const d=(type,l)=>l.map(name=>({type,name}));
+ await sb.from('categories').insert([...d('income',['Gaji','Piutang','Lainnya']),...d('expense',['Orang Tua','Belanja','Makan','Jajan Harian','Utang','Asuransi','Lainnya']),...d('saving',['Tabungan','Darurat'])]);
+ await sb.from('settings').upsert({user_id:U.id,name:U.user_metadata?.name||''});await load()}
+async function start(u){if(U)return;U=u;await load();await seed();
+ chan=sb.channel('rt-'+U.id);['accounts','categories','transactions','settings'].forEach(t=>chan.on('postgres_changes',{event:'*',schema:'public',table:t,filter:'user_id=eq.'+U.id},later));chan.subscribe();render()}
+function later(){clearTimeout(tm);tm=setTimeout(async()=>{if(['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName))return later();await load();render()},400)}
+async function db(p){const r=await p;if(r.error)toast(r.error.message);else{await load();render()}return r}
+
+// ---------- HITUNG ----------
+function calc(){const bal={},pot={};S.a.forEach(a=>{bal[a.id]=+a.initial_balance;pot[a.id]=sum(Object.values(a.opening_saving||{}))});
+ S.t.forEach(t=>{const v=+t.amount;if(!(t.account_id in bal))return;
+  if(t.type=='income')bal[t.account_id]+=v;else if(t.type=='expense')bal[t.account_id]-=v;
+  else if(t.type=='saving'){bal[t.account_id]-=v;pot[t.account_id]+=v}
+  else if(t.type=='transfer'){bal[t.account_id]-=v;if(t.to_account_id in bal)bal[t.to_account_id]+=v}});
+ return{bal,pot,cash:sum(Object.values(bal)),save:sum(Object.values(pot))}}
+const by=(l,type)=>sum(l.filter(t=>t.type==type).map(t=>t.amount));
+const inMonth=m=>S.t.filter(t=>t.date.startsWith(m));
+function savCat(n){return sum(S.a.map(a=>a.opening_saving?.[n]))+sum(S.t.filter(t=>t.type=='saving'&&t.category==n).map(t=>t.amount))}
+
+// ---------- VIEWS ----------
+const NAV=[['home','📊','Ringkasan'],['month','🧾','Bulanan'],['budget','🎯','Budgeting'],['save','🐷','Tabungan'],['setup','⚙️','Setup']];
+function render(){if(!U)return;Object.values(charts).forEach(c=>c.destroy());charts={};
+ const v={home,month,budget,save,setup}[view]();
+ A.innerHTML=`<header><div><div class=logo>💸 Dompetku</div><div class=who>Hai, ${esc(S.s.name||U.email)}</div></div><button class="btn ghost" onclick="logout()">Keluar</button></header>
+ <nav>${NAV.map(n=>`<button class="${view==n[0]?'on':''}" onclick="view='${n[0]}';render()"><span>${n[1]}</span>${n[2]}</button>`).join('')}</nav><main>${v}</main>`;
+ if(window.after)after(),after=null}
+function mk(id,cfg){const el=document.getElementById(id);if(el)charts[id]=new Chart(el,cfg)}
+const COL=['#3566E8','#1FA67A','#E9A23B','#E2573F','#8A63D2','#2CB5C9','#D9609B','#7C8CA8'];
+
+function home(){const c=calc(),y=ym.slice(0,4),inc=by(S.t,'income'),exp=by(S.t,'expense'),sv=by(S.t,'saving');
+ const rows=MON.map((m,i)=>{const l=inMonth(y+'-'+String(i+1).padStart(2,'0')),a=by(l,'income'),b=by(l,'expense'),s=by(l,'saving');return{m,a,b,s,r:a-b-s}});
+ after=()=>{mk('c1',{type:'doughnut',data:{labels:['Pemasukan','Pengeluaran'],datasets:[{data:[inc,exp],backgroundColor:['#1FA67A','#E2573F'],borderWidth:0}]},options:{cutout:'65%'}});
+  mk('c2',{type:'bar',data:{labels:MON,datasets:[{label:'Saving',data:rows.map(r=>r.s),backgroundColor:'#E9A23B',borderRadius:6}]},options:{plugins:{legend:{display:false}}}})};
+ return`<div class="card hero"><small>Total aset</small><div class=big>${fmt(c.cash+c.save)}</div><small>Saldo akun ${fmt(c.cash)} · Tabungan ${fmt(c.save)}</small></div>
+ <div class=grid><div class="card stat"><small>Saldo awal</small><b>${fmt(sum(S.a.map(a=>a.initial_balance)))}</b></div><div class="card stat"><small>Pemasukan</small><b class=pos>${fmt(inc)}</b></div><div class="card stat"><small>Pengeluaran</small><b class=neg>${fmt(exp)}</b></div><div class="card stat"><small>Saving + sisa uang</small><b>${fmt(c.save+c.cash)}</b></div></div>
+ <div class=card><h3>Detail akun</h3><div class=grid>${S.a.map(a=>`<div class=stat><small>${esc(a.name)}</small><b>${fmt(c.bal[a.id])}</b></div>`).join('')}</div></div>
+ <div class=grid2><div class=card><h3>Overview</h3><canvas id=c1></canvas></div><div class=card><h3>Saving ${y}</h3><canvas id=c2></canvas></div></div>
+ <div class="card sc"><h3>Ringkasan ${y}</h3><table><tr><th>Bulan<th class=r>Pemasukan<th class=r>Pengeluaran<th class=r>Saving<th class=r>Sisa uang</tr>${rows.map(r=>`<tr><td>${r.m}<td class=r>${fmt(r.a)}<td class=r>${fmt(r.b)}<td class=r>${fmt(r.s)}<td class="r ${r.r<0?'neg':''}">${fmt(r.r)}</tr>`).join('')}</table></div>`}
+
+function month(){const l=inMonth(ym),c=calc(),ex=cats('expense');
+ const ts=ex.reduce((s,x)=>s+ +x.target,0),ta=sum(ex.map(x=>by(l.filter(t=>t.category==x.name),'expense')));
+ const part=(type)=>cats(type).map(x=>`<tr><td>${esc(x.name)}<td class=r>${fmt(sum(l.filter(t=>t.type==type&&t.category==x.name).map(t=>t.amount)))}</tr>`).join('')+`<tr><th>Total<th class=r>${fmt(by(l,type))}</tr>`;
+ after=()=>{fillCats();mk('c3',{type:'bar',data:{labels:ex.map(x=>x.name),datasets:[{label:'Target',data:ex.map(x=>+x.target),backgroundColor:'#9DB5F5'},{label:'Aktual',data:ex.map(x=>by(l.filter(t=>t.category==x.name),'expense')),backgroundColor:'#E2573F'}]},options:{indexAxis:'y',maxBarThickness:14}})};
+ return`<div class="card row"><h3 style="flex:2;margin:0">Bulan</h3><input type=month value=${ym} onchange="ym=this.value;render()"></div>
+ <div class="card sc"><h3>Saldo uang per akun</h3><table><tr><th>Akun<th class=r>Pemasukan<th class=r>Pengeluaran<th class=r>Saving<th class=r>Saldo kini</tr>${S.a.map(a=>{const m=l.filter(t=>t.account_id==a.id);return`<tr><td>${esc(a.name)}<td class=r>${fmt(by(m,'income'))}<td class=r>${fmt(by(m,'expense'))}<td class=r>${fmt(by(m,'saving'))}<td class=r><b>${fmt(c.bal[a.id])}</b></tr>`}).join('')}</table></div>
+ <div class=card><h3>Catat transaksi</h3><div class=fg><input type=date id=f_d value=${today()}><select id=f_t onchange=fillCats()>${Object.entries(TL).map(([k,v])=>`<option value=${k}>${v}</option>`).join('')}</select><select id=f_c></select>
+ <select id=f_a>${S.a.map(a=>`<option value=${a.id}>${esc(a.name)}</option>`).join('')}</select><select id=f_a2 hidden>${S.a.map(a=>`<option value=${a.id}>ke ${esc(a.name)}</option>`).join('')}</select>
+ <input id=f_n type=number inputmode=decimal placeholder="Nominal (saving minus = tarik)"><input id=f_k placeholder=Keterangan><button class=btn onclick=addTx()>Simpan</button></div></div>
+ <div class=grid2><div class="card sc"><h3>Pemasukan bulan ini</h3><table>${part('income')}</table></div><div class="card sc"><h3>Saving bulan ini</h3><table>${part('saving')}</table></div></div>
+ <div class="card sc"><h3>Pengeluaran: target vs aktual</h3><table><tr><th>Sub kategori<th class=r>Target<th class=r>Aktual<th class=r>Selisih</tr>${ex.map(x=>{const a=by(l.filter(t=>t.category==x.name),'expense'),d=x.target-a;return`<tr><td>${esc(x.name)}<td class=r>${fmt(x.target)}<td class=r>${fmt(a)}<td class="r ${d<0?'neg':''}">${fmt(d)}</tr>`}).join('')}<tr><th>Total<th class=r>${fmt(ts)}<th class=r>${fmt(ta)}<th class=r>${fmt(ts-ta)}</tr></table></div>
+ <div class=card><h3>Target vs aktual</h3><canvas id=c3></canvas></div>
+ <div class="card sc"><h3>Transaksi</h3>${l.length?`<table>${l.map(t=>`<tr><td>${t.date.slice(8)} ${MON[+t.date.slice(5,7)-1]}<td><span class="tag ${t.type}">${TL[t.type]}</span><td>${esc(t.category||'')}<td>${esc(an(t.account_id))}${t.to_account_id?' → '+esc(an(t.to_account_id)):''}<td class=r>${fmt(t.amount)}<td>${esc(t.note)}<td><button class=x onclick="delTx('${t.id}')" aria-label=Hapus>✕</button></tr>`).join('')}</table>`:'<p class=who>Belum ada transaksi bulan ini. Catat yang pertama di atas.</p>'}</div>`}
+function fillCats(){const t=$('#f_t');if(!t)return;const tr=t.value=='transfer';$('#f_c').hidden=tr;$('#f_a2').hidden=!tr;$('#f_c').innerHTML=cats(t.value).map(c=>`<option>${esc(c.name)}</option>`).join('')}
+async function addTx(){const type=$('#f_t').value,amount=+$('#f_n').value;if(!amount||!S.a.length)return toast('Isi nominal dulu');
+ const to=type=='transfer'?$('#f_a2').value:null;if(to&&to==$('#f_a').value)return toast('Akun asal dan tujuan sama');
+ const r=await db(sb.from('transactions').insert({date:$('#f_d').value,type,category:type=='transfer'?'Pindah Akun':$('#f_c').value,account_id:$('#f_a').value,to_account_id:to,amount,note:$('#f_k').value}));if(!r.error)toast('Tersimpan')}
+const delTx=id=>confirm('Hapus transaksi ini?')&&db(sb.from('transactions').delete().eq('id',id));
+
+function budget(){const s=S.s,inc=+s.income||0,soc=inc*(s.social_pct||0)/100,net=inc-soc,P=[+s.pokok_pct||0,+s.keinginan_pct||0,+s.tabungan_pct||0],sisa=100-sum(P),use=net*(P[0]+P[1])/100,ex=cats('expense'),al=sum(ex.map(x=>x.target));
+ const pc=(l,k)=>`<tr><td>${l}<td><input type=number value=${s[k]??0} onchange="setS('${k}',this.value)" style="width:80px"> %<td class=r>${fmt(net*(s[k]||0)/100)}</tr>`;
+ return`<div class=card><h3>Skema persentase budgeting</h3><div class=fg><label>Income bulanan<input type=number value=${inc} onchange="setS('income',this.value)"></label></div>
+ <table><tr><th>Pos<th>Persen<th class=r>Nominal</tr>${pc('Dana sosial','social_pct').replace(/<td class=r>.*?<\/tr>/,`<td class=r>${fmt(soc)}</tr>`)}<tr><td>Nett income<td><td class=r><b>${fmt(net)}</b></tr>${pc('Kebutuhan pokok','pokok_pct')}${pc('Keinginan','keinginan_pct')}${pc('Tabungan','tabungan_pct')}<tr><td>Sisa persentase<td class="${sisa?'neg':'pos'}"><b>${sisa}%</b><td class=r>${sisa?'harus sampai nol':'✓ pas'}</tr></table></div>
+ <div class="card hero"><small>Kebutuhan pokok + keinginan (uang yang bisa dipakai)</small><div class=big>${fmt(use)}</div><small>Dana belum dialokasikan: <b>${fmt(use-al)}</b></small></div>
+ <div class="card sc"><h3>Alokasi target pengeluaran</h3><p class=who>Semua bisa diedit: ubah nama, nominal target, tambah, atau hapus pos.</p><table>${ex.map(x=>`<tr><td><input value="${esc(x.name)}" onchange="renCat('${x.id}',this.value)" style="min-width:130px"><td><input type=number inputmode=decimal value=${x.target} onchange="setT('${x.id}',this.value)" style="min-width:110px"><td style="width:70px"><div class=bar><i style="width:${use?Math.min(100,x.target/use*100):0}%"></i></div><td><button class=x onclick="delCat('${x.id}')" aria-label=Hapus>✕</button></tr>`).join('')}</table>
+ <div class=row style="margin-top:10px"><input id=bn placeholder="Pos baru (mis. Transport)"><input id=bt type=number inputmode=decimal placeholder="Target Rp"><button class="btn ghost" style="flex:none" onclick="addBud()">Tambah</button></div></div>`}
+async function renCat(id,v){v=v.trim();const c=S.c.find(x=>x.id==id);if(!v||v==c.name)return render();
+ const r=await sb.from('categories').update({name:v}).eq('id',id);if(r.error)return toast(r.error.message),render();
+ await sb.from('transactions').update({category:v}).eq('category',c.name).eq('type','expense');await load();render()}
+async function addBud(){const n=$('#bn').value.trim();n&&db(sb.from('categories').insert({type:'expense',name:n,target:+$('#bt').value||0}))}
+const setS=(k,v)=>db(sb.from('settings').upsert({user_id:U.id,[k]:+v}));
+const setT=(id,v)=>db(sb.from('categories').update({target:+v}).eq('id',id));
+
+function save(){const c=calc(),sc=cats('saving'),l=S.t.filter(t=>t.type=='saving');
+ return`<div class="card hero"><small>Total tabungan</small><div class=big>${fmt(c.save)}</div></div>
+ <div class=grid2><div class=card><h3>Per akun</h3><table>${S.a.map(a=>`<tr><td>${esc(a.name)}<td class=r>${fmt(c.pot[a.id])}</tr>`).join('')}</table></div>
+ <div class=card><h3>Per tujuan</h3><table>${sc.map(x=>`<tr><td>${esc(x.name)}<td class=r>${fmt(savCat(x.name))}</tr>`).join('')}</table></div></div>
+ <div class="card sc"><h3>Riwayat saving</h3>${l.length?`<table>${l.map(t=>`<tr><td>${t.date}<td>${esc(t.category)}<td>${esc(an(t.account_id))}<td class=r>${fmt(t.amount)}<td>${esc(t.note)}</tr>`).join('')}</table>`:'<p class=who>Belum ada saving. Catat lewat menu Bulanan → jenis Saving.</p>'}</div>`}
+
+function setup(){const sc=cats('saving');
+ const chips=(type,t)=>`<div class=card><h3>${t}</h3>${cats(type).map(x=>`<span class=chip>${esc(x.name)}<button class=x onclick="delCat('${x.id}')" aria-label=Hapus>✕</button></span>`).join('')}<div class=row style="margin-top:8px"><input id=nc_${type} placeholder="Tambah sub kategori"><button class="btn ghost" style="flex:none" onclick="addCat('${type}')">Tambah</button></div></div>`;
+ return`<div class=card><h3>Akun & saldo awal</h3><p class=who>Isi jumlah uang di tiap akun saat ini. Saldo awal saving dihitung terpisah dari saldo akun.</p>
+ ${S.a.map(a=>`<div class=card style="margin-top:10px"><div class=row><input value="${esc(a.name)}" onchange="updA('${a.id}',{name:this.value})"><button class=x style="flex:none" onclick="delA('${a.id}')" aria-label=Hapus>✕</button></div>
+ <div class=fg style="margin-top:8px"><label class=who>Saldo awal<input type=number value=${a.initial_balance} onchange="updA('${a.id}',{initial_balance:+this.value})"></label>
+ ${sc.map(x=>`<label class=who>Saving ${esc(x.name)}<input type=number value=${a.opening_saving?.[x.name]||0} onchange="updOpen('${a.id}','${esc(x.name).replace(/'/g,"\\'")}',this.value)"></label>`).join('')}</div></div>`).join('')}
+ <div class=row style="margin-top:10px"><input id=na placeholder="Nama akun baru (mis. BANK BCA)"><button class="btn ghost" style="flex:none" onclick="addA()">Tambah akun</button></div></div>
+ <div class=grid2>${chips('income','Kategori pemasukan')}${chips('expense','Kategori pengeluaran')}${chips('saving','Kategori saving')}</div>
+ <div class=card><h3>Akun saya</h3><p class=who>${esc(U.email)}</p><label class=who>Nama panggilan<input value="${esc(S.s.name||'')}" onchange="db(sb.from('settings').upsert({user_id:U.id,name:this.value}))"></label></div>`}
+const updA=(id,o)=>db(sb.from('accounts').update(o).eq('id',id));
+function updOpen(id,k,v){const a=S.a.find(x=>x.id==id);updA(id,{opening_saving:{...a.opening_saving,[k]:+v}})}
+async function addA(){const n=$('#na').value.trim();n&&db(sb.from('accounts').insert({name:n}))}
+const delA=id=>confirm('Hapus akun beserta transaksinya?')&&db(sb.from('accounts').delete().eq('id',id));
+async function addCat(type){const n=$('#nc_'+type).value.trim();n&&db(sb.from('categories').insert({type,name:n}))}
+const delCat=id=>confirm('Hapus kategori ini?')&&db(sb.from('categories').delete().eq('id',id));
+
+// ---------- BOOT ----------
+sb.auth.onAuthStateChange((e,s)=>{if(e=='SIGNED_OUT'){U=null;authView()}else if(s?.user&&!U)start(s.user)});
+sb.auth.getSession().then(({data:{session}})=>{if(!session)authView()});
+</script></body></html>
