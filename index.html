@@ -55,6 +55,7 @@ nav .fab:active i{transform:scale(.94)}
 <script>
 // ====== ISI DENGAN PROJECT SUPABASE KAMU ======
 const SUPABASE_URL='https://vosomfgpeuvctksepbsr.supabase.co', SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvc29tZmdwZXV2Y3Rrc2VwYnNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4NDc0MDgsImV4cCI6MjEwODQyMzQwOH0.wFWTsQSyWuI8YWvm5lMyR1wlIkvGwHWkWgb8n03khhI';
+const WA='6281234567890', PAY_INFO='Transfer / QRIS ke: (isi info pembayaranmu di index.html)';
 // ==============================================
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=s=>document.querySelector(s), A=$('#app');
@@ -74,12 +75,13 @@ function authView(msg=''){A.innerHTML=`<form class="auth" onsubmit="return doAut
 <h1>💸 Dompetku</h1><p class="who">Catat pemasukan, pengeluaran, dan tabungan. Sinkron di semua perangkat.</p>
 <div class="row"><button type="button" class="btn ${mode=='in'?'':'ghost'}" onclick="mode='in';authView()">Masuk</button><button type="button" class="btn ${mode=='up'?'':'ghost'}" onclick="mode='up';authView()">Daftar</button></div>
 ${mode=='up'?'<input id=nm placeholder="Nama kamu" required>':''}
-<input id=em type=email placeholder="Email" required autocomplete=email><input id=pw type=password placeholder="Kata sandi (min. 6 karakter)" minlength=6 required autocomplete=${mode=='in'?'current-password':'new-password'}>
-<button class="btn" style="width:100%">${mode=='in'?'Masuk':'Buat akun'}</button><div class="msg" id=am>${msg}</div></form>`}
-async function doAuth(e){e.preventDefault();const email=$('#em').value,password=$('#pw').value;let r;
+<input id=em type=${mode=='up'?'email':'text'} placeholder="${mode=='up'?'Email':'Email atau username'}" required autocomplete=${mode=='up'?'email':'username'}><input id=pw type=password placeholder="Kata sandi (min. 6 karakter)" minlength=6 required autocomplete=${mode=='in'?'current-password':'new-password'}>
+<button class="btn" style="width:100%">${mode=='in'?'Masuk':'Buat akun'}</button>${mode=='in'?`<button type=button class="btn ghost" style="width:100%" onclick="demoLogin()">🎁 Coba demo (Admin / Admin123)</button>`:''}<div class="msg" id=am>${msg}</div></form>`}
+async function doAuth(e){e.preventDefault();let email=$('#em').value.trim();const password=$('#pw').value;if(!email.includes('@'))email=email.toLowerCase()+'@dompetku.app';let r;
  if(mode=='in')r=await sb.auth.signInWithPassword({email,password});
  else{r=await sb.auth.signUp({email,password,options:{data:{name:$('#nm').value}}});if(!r.error&&!r.data.session){mode='in';return authView('Akun dibuat. Cek email untuk konfirmasi, lalu masuk.'),false}}
  if(r.error)$('#am').textContent=r.error.message;return false}
+function demoLogin(){$('#em').value='Admin';$('#pw').value='Admin123';$('#pw').form.requestSubmit()}
 async function logout(){chan&&sb.removeChannel(chan);await sb.auth.signOut()}
 
 // ---------- DATA ----------
@@ -90,9 +92,30 @@ async function seed(){if(S.a.length||S.c.length)return;
  const d=(type,l)=>l.map(name=>({type,name}));
  await sb.from('categories').insert([...d('income',['Gaji','Piutang','Lainnya']),...d('expense',['Orang Tua','Belanja','Makan','Jajan Harian','Utang','Asuransi','Lainnya']),...d('saving',['Tabungan','Darurat'])]);
  await sb.from('settings').upsert({user_id:U.id,name:U.user_metadata?.name||''});await load()}
-async function start(u){if(U)return;U=u;await load();await seed();
- chan=sb.channel('rt-'+U.id);['accounts','categories','transactions','settings'].forEach(t=>chan.on('postgres_changes',{event:'*',schema:'public',table:t,filter:'user_id=eq.'+U.id},later));chan.subscribe();render()}
-function later(){clearTimeout(tm);tm=setTimeout(async()=>{if(['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName))return later();await load();render()},400)}
+let inited=false,SUB=null,AD=[];
+const dleft=d=>Math.max(0,Math.ceil((new Date(d)-Date.now())/864e5)),dt=d=>new Date(d).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'});
+function access(){if(!SUB)return false;if(SUB.role=='developer')return'dev';if(SUB.role=='demo')return'demo';const n=new Date();if(SUB.paid_until&&new Date(SUB.paid_until)>n)return'paid';if(new Date(SUB.trial_ends_at)>n)return'trial';return false}
+async function loadSub(){SUB=(await sb.from('subscriptions').select('*').maybeSingle()).data}
+async function start(u){if(U)return;U=u;inited=false;await loadSub();
+ chan=sb.channel('rt-'+U.id);['accounts','categories','transactions','settings','subscriptions'].forEach(t=>chan.on('postgres_changes',{event:'*',schema:'public',table:t,filter:'user_id=eq.'+U.id},later));chan.subscribe();await sync()}
+async function sync(){if(!access())return paywall();if(!inited){await load();await seed();inited=true}else await load();render()}
+function later(){clearTimeout(tm);tm=setTimeout(async()=>{if(['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName))return later();await loadSub();await sync()},400)}
+setInterval(()=>{if(U&&inited&&!access())paywall()},60000);
+const waLink=t=>`https://wa.me/${WA}?text=${encodeURIComponent(t+' Email: '+U.email)}`;
+const aBtn='display:block;text-align:center;text-decoration:none;background:var(--blue);color:#fff;font-weight:700;padding:12px;border-radius:10px';
+function paywall(){closeAdd();A.innerHTML=`<div class=auth><h1>🔒 Langganan diperlukan</h1><p class=who>${SUB?'Masa demo atau langgananmu sudah berakhir.':'Akunmu belum terdaftar langganan.'} Berlangganan untuk lanjut memakai Dompetku. Datamu tetap tersimpan dan muncul lagi setelah aktif.</p>
+<div class=card><h3>Pilih paket</h3>${pkgList()}<p class=who>${esc(PAY_INFO)}</p><p class=who>Ketuk paket → chat WhatsApp → bayar → akunmu diaktifkan dan halaman ini terbuka otomatis.</p></div>
+<button class="btn ghost" style="width:100%" onclick="loadSub().then(sync)">Saya sudah bayar – cek ulang</button><button class="btn ghost" style="width:100%" onclick="logout()">Keluar</button></div>`}
+function subBanner(){const a=access();if(a=='trial')return`<div class=card style="background:var(--soft)">🎁 Demo gratis: <b>${dleft(SUB.trial_ends_at)} hari lagi</b> (sampai ${dt(SUB.trial_ends_at)})</div>`;if(a=='paid'&&dleft(SUB.paid_until)<=7)return`<div class=card style="background:var(--soft)">⏰ Langganan berakhir dalam <b>${dleft(SUB.paid_until)} hari</b>. Perpanjang lewat menu Lainnya.</div>`;return''}
+const PKG=[['Paket 1 Bulan','Rp 10.000','Akses 1 bulan'],['Paket Hemat 6 Bulan','Rp 50.000','Hemat Rp 10.000'],['Paket Premium 12 Bulan','Rp 100.000','Hemat Rp 20.000'],['Paket Premium Sekali Bayar','Rp 250.000','Sekali bayar, akses selamanya']];
+const pkgList=()=>PKG.map(p=>`<a style="display:flex;justify-content:space-between;align-items:center;gap:10px;text-decoration:none;color:inherit;border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px" href="${waLink('Halo, saya mau berlangganan Dompetku – '+p[0]+' ('+p[1]+').')}" target=_blank rel=noopener><span><b>${p[0]}</b><br><small class=who>${p[2]}</small></span><b style="color:var(--blue)">${p[1]}</b></a>`).join('');
+const life=()=>SUB?.paid_until&&new Date(SUB.paid_until).getFullYear()>=2900;
+function subCard(){const a=access(),t={dev:'Developer – gratis selamanya',demo:'Akun demo (gratis)',paid:life()?'Seumur hidup ✓':'Aktif sampai '+dt(SUB.paid_until),trial:'Demo gratis sampai '+dt(SUB.trial_ends_at)}[a];
+ return`<div class=card><h3>Langganan</h3><p class=who style="margin:0 0 10px">${t}</p>${a=='dev'||a=='demo'||life()?'':'<b style="display:block;margin-bottom:8px">Berlangganan / perpanjang</b>'+pkgList()}</div>`}
+async function openAdmin(){const r=await sb.rpc('admin_list');if(r.error)return toast(r.error.message);AD=r.data||[];view='admin';render()}
+async function grant(i,m){const r=await sb.rpc('admin_set_paid',{p_email:AD[i].email,p_months:m});if(r.error)return toast(r.error.message);toast(m==9999?'Akses seumur hidup aktif':m?'Langganan +'+m+' bulan':'Akses dicabut');openAdmin()}
+function admin(){const st=r=>r.role=='developer'?'Developer':r.role=='demo'?'Akun demo':r.paid_until&&new Date(r.paid_until)>new Date()?(new Date(r.paid_until).getFullYear()>=2900?'Seumur hidup':'Aktif s/d '+dt(r.paid_until)):new Date(r.trial_ends_at)>new Date()?'Demo s/d '+dt(r.trial_ends_at):'Berakhir';
+ return`<div class="card sc"><h3>Kelola pelanggan (${AD.length})</h3><table>${AD.map((r,i)=>`<tr><td>${esc(r.email)}<td>${st(r)}<td>${r.role!='user'?'':[1,6,12].map(m=>`<button class="btn ghost" onclick="grant(${i},${m})">+${m} bln</button>`).join(' ')+` <button class="btn ghost" onclick="grant(${i},9999)">♾ Selamanya</button> <button class=x onclick="grant(${i},0)" title="Cabut akses" aria-label="Cabut akses">⛔</button>`}</tr>`).join('')}</table></div>`}
 async function db(p){const r=await p;if(r.error)toast(r.error.message);else{await load();render()}return r}
 
 // ---------- HITUNG ----------
@@ -111,9 +134,9 @@ const IC={home:'<path d="M3 11l9-8 9 8M5 10v10h14V10"/>',receipt:'<path d="M6 3h
 const svg=p=>`<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
 const NAV=[['home','home','Beranda'],['month','receipt','Riwayat'],['add','plus','Catat'],['budget','wallet','Budget'],['more','sun','Lainnya']];
 function render(){if(!U)return;Object.values(charts).forEach(c=>c.destroy());charts={};
- const v={home,month,budget,save,setup,more}[view]();
+ const v={home,month,budget,save,setup,more,admin}[view]();
  A.innerHTML=`<header><div><div class=logo>💸 Dompetku</div><div class=who>Hai, ${esc(S.s.name||U.email)}</div></div><button class="btn ghost" onclick="logout()">Keluar</button></header>
- <nav>${NAV.map(n=>n[0]=='add'?`<button class="fab" onclick="openAdd()"><i>${svg(IC.plus)}</i>${n[2]}</button>`:`<button class="${view==n[0]||(n[0]=='more'&&['save','setup'].includes(view))?'on':''}" onclick="view='${n[0]}';render()">${svg(IC[n[1]])}${n[2]}</button>`).join('')}</nav><main>${v}</main>`;
+ <nav>${NAV.map(n=>n[0]=='add'?`<button class="fab" onclick="openAdd()"><i>${svg(IC.plus)}</i>${n[2]}</button>`:`<button class="${view==n[0]||(n[0]=='more'&&['save','setup','admin'].includes(view))?'on':''}" onclick="view='${n[0]}';render()">${svg(IC[n[1]])}${n[2]}</button>`).join('')}</nav><main>${v}</main>`;
  if(window.after)after(),after=null}
 function mk(id,cfg){const el=document.getElementById(id);if(el)charts[id]=new Chart(el,cfg)}
 const COL=['#3566E8','#1FA67A','#E9A23B','#E2573F','#8A63D2','#2CB5C9','#D9609B','#7C8CA8'];
@@ -122,7 +145,7 @@ function home(){const c=calc(),y=ym.slice(0,4),inc=by(S.t,'income'),exp=by(S.t,'
  const rows=MON.map((m,i)=>{const l=inMonth(y+'-'+String(i+1).padStart(2,'0')),a=by(l,'income'),b=by(l,'expense'),s=by(l,'saving');return{m,a,b,s,r:a-b-s}});
  after=()=>{mk('c1',{type:'doughnut',data:{labels:['Pemasukan','Pengeluaran'],datasets:[{data:[inc,exp],backgroundColor:['#1FA67A','#E2573F'],borderWidth:0}]},options:{cutout:'65%'}});
   mk('c2',{type:'bar',data:{labels:MON,datasets:[{label:'Saving',data:rows.map(r=>r.s),backgroundColor:'#E9A23B',borderRadius:6}]},options:{plugins:{legend:{display:false}}}})};
- return`<div class="card hero"><small>Total aset</small><div class=big>${fmt(c.cash+c.save)}</div><small>Saldo akun ${fmt(c.cash)} · Tabungan ${fmt(c.save)}</small></div>
+ return subBanner()+`<div class="card hero"><small>Total aset</small><div class=big>${fmt(c.cash+c.save)}</div><small>Saldo akun ${fmt(c.cash)} · Tabungan ${fmt(c.save)}</small></div>
  <div class=grid><div class="card stat"><small>Saldo awal</small><b>${fmt(sum(S.a.map(a=>a.initial_balance)))}</b></div><div class="card stat"><small>Pemasukan</small><b class=pos>${fmt(inc)}</b></div><div class="card stat"><small>Pengeluaran</small><b class=neg>${fmt(exp)}</b></div><div class="card stat"><small>Saving + sisa uang</small><b>${fmt(c.save+c.cash)}</b></div></div>
  <div class=card><h3>Detail akun</h3><div class=grid>${S.a.map(a=>`<div class=stat><small>${esc(a.name)}</small><b>${fmt(c.bal[a.id])}</b></div>`).join('')}</div></div>
  <div class=grid2><div class=card><h3>Overview</h3><canvas id=c1></canvas></div><div class=card><h3>Saving ${y}</h3><canvas id=c2></canvas></div></div>
@@ -155,8 +178,8 @@ function openAdd(){closeAdd();const d=document.createElement('div');d.id='sheet'
  <label>Keterangan<input id=f_k placeholder="Opsional"></label>
  <button class=btn style="width:100%;padding:12px" onclick="addTx()">Simpan</button></div>`;
  document.body.appendChild(d);fillCats();$('#f_n').focus()}
-function more(){const b=(v,i,t,d)=>`<button class="card" style="text-align:left;font:inherit;color:inherit;cursor:pointer;display:flex;gap:14px;align-items:center;width:100%" onclick="view='${v}';render()"><span style="color:var(--blue)">${svg(IC[i])}</span><span><b>${t}</b><br><small class=who>${d}</small></span></button>`;
- return installCard()+b('save','coins','Tabungan','Total tabungan dan riwayat saving')+b('setup','sliders','Setup','Akun, saldo awal, kategori')+`<button class="btn ghost" style="width:100%;padding:12px" onclick="logout()">Keluar</button>`}
+function more(){const b=(v,i,t,d)=>`<button class="card" style="text-align:left;font:inherit;color:inherit;cursor:pointer;display:flex;gap:14px;align-items:center;width:100%" onclick="${v=='admin'?'openAdmin()':`view='${v}';render()`}"><span style="color:var(--blue)">${svg(IC[i])}</span><span><b>${t}</b><br><small class=who>${d}</small></span></button>`;
+ return subCard()+installCard()+(access()=='dev'?b('admin','sliders','Kelola pelanggan','Aktifkan, perpanjang, atau cabut langganan'):'')+b('save','coins','Tabungan','Total tabungan dan riwayat saving')+b('setup','sliders','Setup','Akun, saldo awal, kategori')+`<button class="btn ghost" style="width:100%;padding:12px" onclick="logout()">Keluar</button>`}
 async function addTx(){const type=$('#f_t').value,amount=+$('#f_n').value;if(!amount||!S.a.length)return toast('Isi nominal dulu');
  const to=type=='transfer'?$('#f_a2').value:null;if(to&&to==$('#f_a').value)return toast('Akun asal dan tujuan sama');
  const r=await db(sb.from('transactions').insert({date:$('#f_d').value,type,category:type=='transfer'?'Pindah Akun':$('#f_c').value,account_id:$('#f_a').value,to_account_id:to,amount,note:$('#f_k').value}));if(!r.error){closeAdd();toast('Tersimpan')}}
@@ -207,6 +230,6 @@ async function install(){if(dip){dip.prompt();await dip.userChoice;dip=null;rend
 function installCard(){if(standalone())return'';const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
  return`<div class=card><h3>📲 Pasang di perangkat</h3>${dip?`<p class=who>Pasang agar muncul di layar utama dan terbuka seperti aplikasi.</p><button class=btn style="width:100%;padding:12px" onclick="install()">Pasang aplikasi</button>`:ios?'<p class=who>Di Safari: ketuk tombol Bagikan, lalu <b>Tambah ke Layar Utama</b>.</p>':'<p class=who>Buka menu browser (⋮), lalu pilih <b>Instal aplikasi</b> atau <b>Tambahkan ke layar utama</b>.</p>'}</div>`}
 // ---------- BOOT ----------
-sb.auth.onAuthStateChange((e,s)=>{if(e=='SIGNED_OUT'){U=null;authView()}else if(s?.user&&!U)start(s.user)});
+sb.auth.onAuthStateChange((e,s)=>{if(e=='SIGNED_OUT'){U=null;SUB=null;inited=false;authView()}else if(s?.user&&!U)start(s.user)});
 sb.auth.getSession().then(({data:{session}})=>{if(!session)authView()});
 </script></body></html>
