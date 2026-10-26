@@ -87,3 +87,21 @@ Edit file → di GitHub buka file → ikon pensil / **Upload files** menimpa →
 - Anon key memang publik; yang menjaga data adalah RLS di database. **Jangan** pernah menaruh `service_role` key di `index.html`.
 - Penguncian langganan dilakukan di database, jadi tidak bisa dilewati dengan mengubah tampilan di browser.
 - Pembayaran masih manual. Pembayaran otomatis (Midtrans, dll.) bisa ditambahkan nanti.
+
+---
+## Pendaftaran: email + password, atau nomor HP + kode OTP (MessageBird)
+Halaman login punya 3 tab: **Masuk**, **Daftar** (email + password, kolom WhatsApp opsional), dan **Pakai HP** (kode OTP lewat SMS; akun baru otomatis dibuat setelah kode benar).
+
+### Hubungkan MessageBird ke Supabase
+1. Supabase → **Authentication → Sign In / Providers → Phone** → aktifkan **Enable Phone provider**.
+2. *SMS provider*: pilih **MessageBird**. Isi **MessageBird Access Key** (Live key dari dashboard MessageBird/Bird, bukan test key) dan **MessageBird Originator** (nama atau nomor pengirim yang sudah disetujui di MessageBird). Aturan sender di Indonesia ditentukan MessageBird, jadi cek di dashboard-nya.
+3. Biarkan *Enable phone confirmations* aktif. Atur *SMS OTP Expiry* dan *Length* sesuai selera, lalu **Save**.
+4. Jalankan `update_nomor_hp.sql` di SQL Editor (aman diulang). Wajib: file ini mengubah cara admin mengelola pelanggan yang daftar lewat HP.
+5. Upload ulang `index.html` dan `sw.js`, tutup-buka aplikasi.
+6. Uji: tab **Pakai HP** → isi nomor → **Kirim kode** → masukkan kode SMS.
+
+### Catatan
+- OTP dikirim lewat **SMS**. Dari dokumentasi Supabase yang saya cek, MessageBird dipakai untuk SMS; OTP lewat WhatsApp tidak tersedia dengan setup ini.
+- Setiap SMS ada biayanya di MessageBird. Pantau saldo, dan di Authentication → Rate Limits batasi jumlah SMS per jam agar tidak disalahgunakan.
+- Akun lewat HP tidak punya email. Di **Kelola pelanggan** akunnya tampil sebagai 📱 nomor, dengan tombol 💬 ke WhatsApp.
+- Akun email dan akun HP adalah akun terpisah, meski dimiliki orang yang sama.
